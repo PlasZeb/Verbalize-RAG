@@ -1,0 +1,7 @@
+{
+  "name": "Verbalize RAG",
+  "description": "A real-time audio conversation interface that lets you chat with your documents using Gemini Live API.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
