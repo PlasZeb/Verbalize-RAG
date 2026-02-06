@@ -1,0 +1,15 @@
+{
+  "name": "Verbalize RAG",
+  "short_name": "Verbalize",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/3658/3658773.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

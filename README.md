@@ -10,7 +10,30 @@ It leverages the **Gemini Multimodal Live API** for low-latency audio interactio
 *   **Document Context (Frontend RAG):** Upload text files (.txt, .md, .json, .csv) and the AI will reference them instantly.
 *   **Bilingual Support:** Automatically detects and speaks English or Hungarian based on user input.
 *   **Modern UI:** A clean, dark-mode aesthetic built with Tailwind CSS.
-*   **Audio Visualizer:** Real-time feedback for audio input and output.
+*   **Mobile Optimized:** Designed with safe-area support and native touch behaviors (App-ready).
+
+## Development Roadmap
+
+This project is following a phased approach to become a monetized native mobile application:
+
+1.  **Phase 1: App-Ready Web UI (Completed)**
+    *   Viewport optimization (notch/safe-area support).
+    *   Touch gestures refinement (no overscroll, no accidental selection).
+    *   Wake Lock & Media Session implementation.
+    
+2.  **Phase 2: Backend & Auth (Next Step)**
+    *   Move API Key from frontend to backend.
+    *   Implement user authentication (Clerk/Firebase).
+    *   Secure Token Exchange for Gemini API.
+
+3.  **Phase 3: Payments**
+    *   Stripe Integration.
+    *   Subscription management logic.
+
+4.  **Phase 4: Native Wrapper**
+    *   Wrap with **Capacitor**.
+    *   Add Native Microphone Permissions.
+    *   Publish to App Store / Play Store.
 
 ## Setup
 

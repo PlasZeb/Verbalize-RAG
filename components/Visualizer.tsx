@@ -18,34 +18,36 @@ export const Visualizer: React.FC<VisualizerProps> = ({ volume, isActive }) => {
     let phase = 0;
     
     const draw = () => {
-      // Clear canvas with fade effect
-      ctx.fillStyle = 'rgba(15, 23, 42, 0.2)'; // Match bg color
+      // Clear canvas with background color
+      ctx.fillStyle = '#0f172a'; // Match bg-slate-950 roughly
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
+      const centerX = canvas.width / 2;
+      const centerY = canvas.height / 2;
+
       if (!isActive) {
-        // Resting state
+        // Resting state - subtle pulsing circle
+        phase += 0.02;
         ctx.beginPath();
-        ctx.strokeStyle = 'rgba(94, 234, 212, 0.3)';
+        ctx.strokeStyle = 'rgba(94, 234, 212, 0.2)';
         ctx.lineWidth = 2;
-        ctx.arc(canvas.width / 2, canvas.height / 2, 50, 0, Math.PI * 2);
+        const pulse = 40 + Math.sin(phase) * 5;
+        ctx.arc(centerX, centerY, pulse, 0, Math.PI * 2);
         ctx.stroke();
         animationRef.current = requestAnimationFrame(draw);
         return;
       }
 
-      const centerX = canvas.width / 2;
-      const centerY = canvas.height / 2;
-      const baseRadius = 60;
-      // dynamic radius based on volume
-      const dynamicRadius = baseRadius + (volume * 200); 
+      const baseRadius = canvas.width < 350 ? 40 : 60;
+      const dynamicRadius = baseRadius + (volume * 150); 
 
-      phase += 0.1;
+      phase += 0.15;
 
       // Draw multiple rings
       for (let i = 0; i < 3; i++) {
         ctx.beginPath();
         const offset = i * (Math.PI / 3);
-        const ringRadius = dynamicRadius + (Math.sin(phase + offset) * 10);
+        const ringRadius = dynamicRadius + (Math.sin(phase + offset) * 12);
         
         ctx.arc(centerX, centerY, ringRadius, 0, Math.PI * 2);
         
@@ -55,8 +57,8 @@ export const Visualizer: React.FC<VisualizerProps> = ({ volume, isActive }) => {
         gradient.addColorStop(1, '#3b82f6'); // Blue 500
         
         ctx.strokeStyle = gradient;
-        ctx.lineWidth = 3 - i;
-        ctx.globalAlpha = 1 - (i * 0.2);
+        ctx.lineWidth = 4 - i;
+        ctx.globalAlpha = 0.8 - (i * 0.2);
         ctx.stroke();
       }
       ctx.globalAlpha = 1;
@@ -76,7 +78,7 @@ export const Visualizer: React.FC<VisualizerProps> = ({ volume, isActive }) => {
       ref={canvasRef} 
       width={400} 
       height={400}
-      className="w-full max-w-[400px] h-auto mx-auto"
+      className="w-full max-w-[300px] sm:max-w-[400px] h-auto aspect-square mx-auto"
     />
   );
 };

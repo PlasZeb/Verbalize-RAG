@@ -1,4 +1,4 @@
-export function base64ToUint8Array(base64: string): Uint8Array {
+export function decode(base64: string): Uint8Array {
   const binaryString = atob(base64);
   const len = binaryString.length;
   const bytes = new Uint8Array(len);
@@ -8,9 +8,8 @@ export function base64ToUint8Array(base64: string): Uint8Array {
   return bytes;
 }
 
-export function arrayBufferToBase64(buffer: ArrayBuffer): string {
+export function encode(bytes: Uint8Array): string {
   let binary = '';
-  const bytes = new Uint8Array(buffer);
   const len = bytes.byteLength;
   for (let i = 0; i < len; i++) {
     binary += String.fromCharCode(bytes[i]);
@@ -18,16 +17,18 @@ export function arrayBufferToBase64(buffer: ArrayBuffer): string {
   return btoa(binary);
 }
 
+export function base64ToUint8Array(base64: string): Uint8Array {
+  return decode(base64);
+}
+
 export function createPcmBlob(data: Float32Array): { data: string; mimeType: string } {
   const l = data.length;
   const int16 = new Int16Array(l);
   for (let i = 0; i < l; i++) {
-    // Clamp values to [-1, 1] range before scaling
-    const s = Math.max(-1, Math.min(1, data[i]));
-    int16[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+    int16[i] = data[i] * 32768;
   }
   return {
-    data: arrayBufferToBase64(int16.buffer),
+    data: encode(new Uint8Array(int16.buffer)),
     mimeType: 'audio/pcm;rate=16000',
   };
 }
