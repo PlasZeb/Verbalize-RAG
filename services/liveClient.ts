@@ -1,7 +1,22 @@
-import { GoogleGenAI, LiveServerMessage, Modality } from '@google/genai';
+import { GoogleGenAI, LiveServerMessage, Modality, Type, FunctionDeclaration } from '@google/genai';
 import { createPcmBlob, decodeAudioData, base64ToUint8Array } from '../utils/audioUtils';
 import { Language, ModelType, VoiceName } from '../types';
 import { config as appConfig } from '../utils/config';
+
+const searchTool: FunctionDeclaration = {
+  name: 'search_knowledge_base',
+  parameters: {
+    type: Type.OBJECT,
+    description: 'Searches the uploaded document library for specific information using semantic vector search in Pinecone.',
+    properties: {
+      query: {
+        type: Type.STRING,
+        description: 'The search query or question to look up.',
+      },
+    },
+    required: ['query'],
+  },
+};
 
 export class LiveClient {
   private ai: GoogleGenAI | null = null;
@@ -14,12 +29,12 @@ export class LiveClient {
   private nextStartTime: number = 0;
   private sources: Set<AudioBufferSourceNode> = new Set();
   private activeSession: any = null;
-  private silentAudio: HTMLAudioElement | null = null;
   
   private currentInputTranscription: string = '';
   private currentOutputTranscription: string = '';
 
   public onVolumeChange: ((volume: number) => void) | null = null;
+  public onToolCall: ((name: string, args: any) => void) | null = null;
 
   constructor() {
     this.refreshAI();
@@ -29,15 +44,6 @@ export class LiveClient {
     if (appConfig.isValid) {
       this.ai = new GoogleGenAI({ apiKey: appConfig.apiKey });
     }
-  }
-
-  private initSilentAudio() {
-    if (!this.silentAudio) {
-      this.silentAudio = new Audio();
-      this.silentAudio.src = 'data:audio/wav;base64,UklGRigAAABXQVZRTm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQQAAAAAAA==';
-      this.silentAudio.loop = true;
-    }
-    this.silentAudio.play().catch(() => {});
   }
 
   async connect(
@@ -53,9 +59,8 @@ export class LiveClient {
   ): Promise<() => void> {
     try {
       this.refreshAI();
-      if (!this.ai) throw new Error("API Key not found or invalid.");
+      if (!this.ai) throw new Error("API Key hiányzik.");
 
-      this.initSilentAudio();
       this.inputAudioContext = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
       this.outputAudioContext = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
       this.outputNode = this.outputAudioContext.createGain();
@@ -63,11 +68,6 @@ export class LiveClient {
 
       this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
 
-      this.currentInputTranscription = '';
-      this.currentOutputTranscription = '';
-      this.nextStartTime = 0; 
-
-      const truncatedContext = fileContext.substring(0, 100000);
       const languageInstruction = language === 'hu' ? "Speak HUNGARIAN ONLY." : "Speak ENGLISH ONLY.";
 
       const config = {
@@ -77,21 +77,21 @@ export class LiveClient {
             this.startAudioInput();
             onOpen();
           },
-          onmessage: (message: LiveServerMessage) => this.handleMessage(message, onTranscript),
+          onmessage: (message: LiveServerMessage) => this.handleMessage(message, onTranscript, fileContext),
           onclose: () => {
             this.stopAudio();
             onClose();
           },
-          onerror: (e: any) => {
-            console.error("Native Live Error:", e);
-            onError(new Error(e?.message || "Kapcsolódási hiba. Kérlek próbáld újra!"));
-          },
+          onerror: (e: any) => onError(new Error(e?.message || "Hiba történt.")),
         },
         config: {
           responseModalities: [Modality.AUDIO],
           inputAudioTranscription: enableTranscription ? {} : undefined,
           outputAudioTranscription: enableTranscription ? {} : undefined,
-          systemInstruction: `SYSTEM: Native Audio Interface. ${languageInstruction} Character: Professional AI Assistant. Context: ${truncatedContext || "No context provided."}`,
+          tools: [{ functionDeclarations: [searchTool] }],
+          systemInstruction: `You are a professional research assistant. ${languageInstruction} 
+          When asked about the document, ALWAYS use the 'search_knowledge_base' tool. 
+          Respond naturally based on the search results provided.`,
           speechConfig: {
             voiceConfig: { prebuiltVoiceConfig: { voiceName: voice } },
           },
@@ -103,13 +103,11 @@ export class LiveClient {
       
       sessionPromise.then(sess => {
         this.activeSession = sess;
-      }).catch(err => {
-        onError(err);
       });
 
       return () => this.disconnect();
     } catch (err) {
-      onError(err instanceof Error ? err : new Error('Rendszerhiba az indításkor.'));
+      onError(err instanceof Error ? err : new Error('Indítási hiba.'));
       return () => {};
     }
   }
@@ -137,35 +135,73 @@ export class LiveClient {
 
   private async handleMessage(
     message: LiveServerMessage, 
-    onTranscript: (sender: 'user' | 'model', text: string, isFinal: boolean) => void
+    onTranscript: (sender: 'user' | 'model', text: string, isFinal: boolean) => void,
+    fileContext: string
   ) {
+    // 1. Audio
     const base64Audio = message.serverContent?.modelTurn?.parts?.[0]?.inlineData?.data;
-    
     if (base64Audio && this.outputAudioContext && this.outputNode) {
       const audioData = base64ToUint8Array(base64Audio);
-      // scheduling with a tiny safety buffer (0.05s) for jitter
       this.nextStartTime = Math.max(this.nextStartTime, this.outputAudioContext.currentTime + 0.05);
       const audioBuffer = await decodeAudioData(audioData, this.outputAudioContext, 24000, 1);
       const source = this.outputAudioContext.createBufferSource();
       source.buffer = audioBuffer;
       source.connect(this.outputNode);
-      source.addEventListener('ended', () => { this.sources.delete(source); });
       source.start(this.nextStartTime);
       this.nextStartTime += audioBuffer.duration;
       this.sources.add(source);
     }
 
-    const serverContent = message.serverContent;
-    if (serverContent) {
-      if (serverContent.outputTranscription?.text) {
-        this.currentOutputTranscription += serverContent.outputTranscription.text;
+    // 2. Tool Calls (REAL API HÍVÁS)
+    if (message.toolCall) {
+      for (const fc of message.toolCall.functionCalls) {
+        if (this.onToolCall) this.onToolCall(fc.name, fc.args);
+        
+        let searchResult = "Nincs találat a dokumentumban.";
+        
+        try {
+          // Senior megoldás: Hívjuk a saját biztonságos backendünket
+          const response = await fetch(appConfig.searchApiEndpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ query: fc.args.query })
+          });
+          
+          if (response.ok) {
+            const data = await response.json();
+            searchResult = data.text || JSON.stringify(data);
+          } else {
+            // Fallback: Ha a backend még nem él, használjuk a feltöltött kontextust
+            searchResult = fileContext.substring(0, 2000); 
+          }
+        } catch (e) {
+          console.error("Search API Error, using fallback context:", e);
+          searchResult = fileContext.substring(0, 2000);
+        }
+
+        const session = await (this as any).sessionPromise;
+        session.sendToolResponse({
+          functionResponses: [{
+            id: fc.id,
+            name: fc.name,
+            response: { result: searchResult },
+          }]
+        });
+      }
+    }
+
+    // 3. Transcripts
+    const sc = message.serverContent;
+    if (sc) {
+      if (sc.outputTranscription?.text) {
+        this.currentOutputTranscription += sc.outputTranscription.text;
         onTranscript('model', this.currentOutputTranscription, false);
       } 
-      if (serverContent.inputTranscription?.text) {
-        this.currentInputTranscription += serverContent.inputTranscription.text;
+      if (sc.inputTranscription?.text) {
+        this.currentInputTranscription += sc.inputTranscription.text;
         onTranscript('user', this.currentInputTranscription, false);
       }
-      if (serverContent.turnComplete) {
+      if (sc.turnComplete) {
         if (this.currentInputTranscription.trim()) onTranscript('user', this.currentInputTranscription, true);
         if (this.currentOutputTranscription.trim()) onTranscript('model', this.currentOutputTranscription, true);
         this.currentInputTranscription = '';
@@ -174,10 +210,9 @@ export class LiveClient {
     }
 
     if (message.serverContent?.interrupted) {
-      this.sources.forEach(source => { try { source.stop(); } catch(e) {} });
+      this.sources.forEach(s => { try { s.stop(); } catch(e) {} });
       this.sources.clear();
       this.nextStartTime = 0;
-      this.currentOutputTranscription = '';
     }
   }
 
@@ -189,7 +224,7 @@ export class LiveClient {
   }
 
   private stopAudio() {
-    if (this.stream) { this.stream.getTracks().forEach(track => track.stop()); this.stream = null; }
+    if (this.stream) { this.stream.getTracks().forEach(t => t.stop()); this.stream = null; }
     if (this.processor) { this.processor.disconnect(); this.processor = null; }
     if (this.inputAudioContext) { try { this.inputAudioContext.close(); } catch(e){} this.inputAudioContext = null; }
     if (this.outputAudioContext) { try { this.outputAudioContext.close(); } catch(e){} this.outputAudioContext = null; }

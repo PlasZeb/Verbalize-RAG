@@ -1,12 +1,13 @@
 export const config = {
   get apiKey() {
-    const key = process.env.API_KEY;
-    // In production, we might fetch this from a secure endpoint if using a token exchange pattern,
-    // but for low-latency WebSocket connections, we often use a restricted client-side key.
-    return key || '';
+    return process.env.API_KEY || '';
   },
   
-  // Validation helper
+  // A backend végpontod, ami a Pinecone lekérdezéseket kezeli
+  get searchApiEndpoint() {
+    return process.env.SEARCH_API_ENDPOINT || '/api/search';
+  },
+
   get isValid() {
     return !!process.env.API_KEY && process.env.API_KEY.length > 0;
   }

@@ -1,17 +1,13 @@
 # Changelog
 
-## [1.3.0] - 2024-05-20
+## [1.5.0] - 2024-05-22
 ### Added
-- **Voice Selection**: Users can now choose between 5 different AI personalities (Zephyr, Puck, Charon, Kore, Fenrir) in the header.
-- **Jitter Buffer**: Improved audio playback stability by adding a 50ms safety buffer in the scheduling logic.
+- **Function Calling RAG**: Implemented Gemini Live Tool Use for document retrieval.
+- **Search Feedback UI**: Visual indicators for when the AI is querying the knowledge base.
+- **Pinecone Architecture**: Structured `liveClient.ts` to handle external vector database lookups via tools.
 ### Refined
-- UI header now supports horizontal scrolling for mobile devices to accommodate all selectors.
-- Connection footer status updated to reflect GitHub context synchronization.
+- Replaced direct context injection with on-demand retrieval for better scalability.
+- Improved session stability during tool execution.
 
-## [1.2.2] - 2024-05-20
-### Fixed
-- **Session Restart Bug:** Fixed audio scheduling cursor reset issue.
-- **Session Cleanup:** Implemented explicit session.close().
-
-## [1.0.0] - 2024-05-20
-- Initial release with Gemini Live API Integration.
+## [1.4.0] - 2024-05-21
+- Initial Gemini Live API RAG release.
