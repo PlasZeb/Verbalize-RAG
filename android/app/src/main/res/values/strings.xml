@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">VerbalizeRAG</string>
+    <string name="title_activity_main">VerbalizeRAG</string>
+    <string name="package_name">com.verbalizerag.app</string>
+    <string name="custom_url_scheme">com.verbalizerag.app</string>
+</resources>

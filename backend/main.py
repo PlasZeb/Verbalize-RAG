@@ -88,6 +88,18 @@ async def search(request: SearchRequest):
         print(f"Error during search: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.get("/api/session-config")
+async def get_session_config():
+    # In the future, add user authentication check here
+    if not GOOGLE_API_KEY:
+        raise HTTPException(status_code=500, detail="Google API Key not configured on server")
+    
+    return {
+        "apiKey": GOOGLE_API_KEY,
+        "model": "gemini-2.0-flash-exp", # Ensure this matches your frontend
+        "voice": "Puck" # Optional: default voice
+    }
+
 @app.get("/health")
 async def health_check():
     return {"status": "ok"}

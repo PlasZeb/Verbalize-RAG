@@ -58,8 +58,22 @@ export class LiveClient {
     onTranscript: (sender: 'user' | 'model', text: string, isFinal: boolean) => void
   ): Promise<() => void> {
     try {
+      // 1. Fetch API key and config from backend if needed
+      if (!appConfig.isValid) {
+        try {
+          const response = await fetch(appConfig.sessionConfigEndpoint);
+          if (response.ok) {
+            const data = await response.json();
+            appConfig.apiKey = data.apiKey;
+            this.refreshAI();
+          }
+        } catch (fetchError) {
+          console.error("Failed to fetch session config from backend:", fetchError);
+        }
+      }
+
       this.refreshAI();
-      if (!this.ai) throw new Error("API Key hiányzik.");
+      if (!this.ai) throw new Error("API Key hiányzik. Kérjük, ellenőrizze a backend kapcsolatot.");
 
       this.inputAudioContext = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
       this.outputAudioContext = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
