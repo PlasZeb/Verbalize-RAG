@@ -1,14 +1,15 @@
 export const config = {
   get apiKey() {
-    return process.env.API_KEY || '';
+    return (import.meta as any).env.VITE_API_KEY || '';
   },
   
   // A backend végpontod, ami a Pinecone lekérdezéseket kezeli
   get searchApiEndpoint() {
-    return process.env.SEARCH_API_ENDPOINT || '/api/search';
+    return (import.meta as any).env.VITE_SEARCH_API_ENDPOINT || 'http://localhost:8000/api/search';
   },
 
   get isValid() {
-    return !!process.env.API_KEY && process.env.API_KEY.length > 0;
+    const key = (import.meta as any).env.VITE_API_KEY;
+    return !!key && key.length > 0;
   }
 };

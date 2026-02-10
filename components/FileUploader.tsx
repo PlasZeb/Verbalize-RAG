@@ -2,8 +2,8 @@ import React, { useCallback, useState, useEffect } from 'react';
 import { FileData } from '../types';
 import * as pdfjsLib from 'pdfjs-dist';
 
-// Set worker source for PDF.js
-pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://esm.sh/pdfjs-dist@4.0.379/build/pdf.worker.min.mjs';
+// Set worker source for PDF.js - Using a more robust CDN link that matches common versions
+pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
 
 interface FileUploaderProps {
   onFileLoaded: (file: FileData) => void;
